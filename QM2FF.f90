@@ -13,8 +13,9 @@
                        fitted '
           write(*,*) '-pot_fix : Lammps like input to be appended, not &
                        touched by the optimization'
-          write(*,*) '-forces : switch on the fitting of forces'
           write(*,*) '-ener   : switch on the fitting of energies'
+          write(*,*) '-forces : switch on the fitting of forces'
+          write(*,*) '-tensor : switch on the fitting of a tensor'
           write(*,*) '-compress <val> : activates ridge-regression'
           write(*,*) '-pca            : activate principal components &
                                         analysys.'
@@ -71,6 +72,11 @@
            cs=.true.
            call getarg(l+1,command)
            read(command,*) cm_val
+          endif
+          if(trim(command).eq.'-E0')then        
+            !!!! -E0 0 -E0 1:
+           call getarg(l+1,command)
+           read(command,*) e0cs
           endif
 
          enddo
@@ -161,8 +167,10 @@
 
             chi_val_ener=chi_val_ener+( (ener-sys%data(i)%ener(l))/sys%data(i)%nats )**2
 
-            write(222,*) i,l,ener/sys%data(i)%nats,sys%data(i)%ener(l)/sys%data(i)%nats,&
-                 (ener-sys%data(i)%ener(l))/sys%data(i)%nats
+!            write(222,*) i,l,ener/sys%data(i)%nats,sys%data(i)%ener(l)/sys%data(i)%nats,&
+!                 (ener-sys%data(i)%ener(l))/sys%data(i)%nats
+            write(222,*) i,l,ener,sys%data(i)%ener(l),&
+                 (ener-sys%data(i)%ener(l))
 
             ener=>null()
 
