@@ -7,7 +7,7 @@
         use, intrinsic :: ISO_C_binding, only : C_double, C_ptr, C_int
         implicit none
         integer                         :: aaa,bbb,l,i,k,n,v,s,t,ll,tt
-        integer                         :: ss,vv,inf,LWORK
+        integer                         :: ss,vv,inf,LWORK,dimA,dimB
         double precision, allocatable   :: x(:),B(:),A(:,:),work(:),AA(:,:)
         double precision, allocatable   :: W(:),Tval(:,:),YY(:,:),Y(:,:),A2(:,:)
         double precision, allocatable   :: ACM(:,:),BCM(:),BB(:)
@@ -220,32 +220,58 @@
              kind_count(nint(kind_nat(t)))=kind_count(nint(kind_nat(t)))+1
             enddo
 
-            if(.not.cs)then
-             if(.not.allocated(B)) allocate(B(npar2fit+nkinds-1))
-!             if(.not.allocated(B)) allocate(B(npar2fit+nkinds))
-             if(.not.allocated(A)) then
-              allocate(A(npar2fit+nkinds-1,npar*nkinds))
-!              allocate(A(npar2fit+nkinds,npar*nkinds))
-              A=0.0d0
-             endif
-            else    ! compressive sensing
-             if(.not.allocated(B)) allocate(B(npar2fit+nkinds-1+(npar-1)*nkinds))
-!             if(.not.allocated(B)) allocate(B(npar2fit+nkinds+(npar-1)*nkinds))
-             if(.not.allocated(A)) then
-              allocate(A(npar2fit+(npar-1)*nkinds+nkinds-1,npar*nkinds))
-!              allocate(A(npar2fit+(npar-1)*nkinds+nkinds,npar*nkinds))
-              A=0.0d0
-             endif
+            dimA=npar*nkinds
+            dimB=npar2fit
+
+            if(cs) dimB=dimB+(npar-1)*nkinds
+            if(e0cs.eq.1) dimB=dimB+nkinds-1
+            if(e0cs.eq.2) dimB=dimB+nkinds
+
+            if(.not.allocated(B))then
+             allocate(B(dimB))
+             B=0.0d0
             endif
+            if(.not.allocated(A))then
+             allocate(A(dimB,dimA))
+             A=0.0d0
+            endif
+
+!            if(.not.cs)then
+!             if(.not.allocated(B)) allocate(B(npar2fit+nkinds-1))
+!             if(.not.allocated(B)) allocate(B(npar2fit+nkinds))
+!             if(.not.allocated(B)) allocate(B(npar2fit))
+!             if(.not.allocated(A)) then
+!              allocate(A(npar2fit+nkinds-1,npar*nkinds))
+!              allocate(A(npar2fit+nkinds,npar*nkinds))
+!              allocate(A(npar2fit,npar*nkinds))
+!              A=0.0d0
+!             endif
+!            else    ! compressive sensing
+!             if(.not.allocated(B)) allocate(B(npar2fit+nkinds-1+(npar-1)*nkinds))
+!             if(.not.allocated(B)) allocate(B(npar2fit+nkinds+(npar-1)*nkinds))
+!             if(.not.allocated(B)) allocate(B(npar2fit+(npar-1)*nkinds))
+!             if(.not.allocated(A)) then
+!              allocate(A(npar2fit+(npar-1)*nkinds+nkinds-1,npar*nkinds))
+!              allocate(A(npar2fit+(npar-1)*nkinds+nkinds,npar*nkinds))
+!              allocate(A(npar2fit+(npar-1)*nkinds,npar*nkinds))
+!              A=0.0d0
+!             endif
+!            endif
 
             if(pca)then
              open(1313,file='PCA.dat')
-             if(.not.allocated(A2)) allocate(A2(tot_frames,(npar-1)*nkinds))
+!             if(.not.allocated(A2)) allocate(A2(tot_frames,(npar-1)*nkinds))
+!             if(.not.allocated(BB)) allocate(BB(tot_frames))
+!             if(.not.allocated(W)) allocate(W((npar-1)*nkinds))
+!             if(.not.allocated(Y)) allocate(Y(tot_frames,(npar-1)*nkinds))
+!             if(.not.allocated(YY)) allocate(YY((npar-1)*nkinds,(npar-1)*nkinds))
+!             if(.not.allocated(Tval)) allocate(Tval(tot_frames,(npar-1)*nkinds))
+             if(.not.allocated(A2)) allocate(A2(tot_frames,(npar-1)))
              if(.not.allocated(BB)) allocate(BB(tot_frames))
-             if(.not.allocated(W)) allocate(W((npar-1)*nkinds))
-             if(.not.allocated(Y)) allocate(Y(tot_frames,(npar-1)*nkinds))
-             if(.not.allocated(YY)) allocate(YY((npar-1)*nkinds,(npar-1)*nkinds))
-             if(.not.allocated(Tval)) allocate(Tval(tot_frames,(npar-1)*nkinds))
+             if(.not.allocated(W)) allocate(W((npar-1)))
+             if(.not.allocated(Y)) allocate(Y(tot_frames,(npar-1)))
+             if(.not.allocated(YY)) allocate(YY((npar-1),(npar-1)))
+             if(.not.allocated(Tval)) allocate(Tval(tot_frames,(npar-1)))
             endif
 
            endif
@@ -258,16 +284,18 @@
              s=s+npar
             enddo
             
+            if(print_bi) write(121,*) ener(:,1)
             do k=2,npar
              do t=1,sys%data(i)%nats
 
-              if(print_bi) write(121,*) ener(k-1,map(t))
 
                s=k+(nint(kind_nat(t))-1)*npar
                A(v,s)=A(v,s)+ener(k-1,map(t))*sys%data(i)%weight
                if(pca)then
+                if(kind_nat(t).eq.1)then
                 ss=k-1+(nint(kind_nat(t))-1)*(npar-1)
                 A2(vv,ss)=A(vv,ss)+ener(k-1,map(t))
+                endif
                endif
 
              enddo
@@ -346,24 +374,33 @@
             fy_ref=>null()
             fz_ref=>null()
 
-
-           endif ! end if on forse
-
-          enddo      ! ciclo on frames
+           endif  ! end if on forse
+          enddo  ! ciclo on frames
 
           if(allocated(map)) deallocate(map)
           if(allocated(id)) deallocate(id)
     
          enddo   ! ciclo su data
 
-         s=1
-         do k=1,nkinds-1
-!         do k=1,nkinds!-1
-          B(v)=0.0d0
-          A(v,s)=1.0d0
-          s=s+npar
-          v=v+1
-         enddo
+         if(e0cs.eq.1)then
+          s=1
+          do k=1,nkinds-1
+           B(v)=0.0d0
+           A(v,s)=1.0d0
+           s=s+npar
+           v=v+1
+          enddo
+         endif
+
+         if(e0cs.eq.2)then
+          s=1
+          do k=1,nkinds
+           B(v)=0.0d0
+           A(v,s)=1.0d2
+           s=s+npar
+           v=v+1
+          enddo
+         endif
 
 ! compressive sensing
 
@@ -394,15 +431,18 @@
          YY=matmul(transpose(Y),Y)
          call new_diag(size(YY,1),YY,W)
 
-         if(.not.allocated(AA)) allocate(AA(tot_frames,70))
+         if(.not.allocated(AA)) allocate(AA(tot_frames,4))
 
-         AA=matmul(A2,YY(:,1:70))
+         AA=matmul(A2,YY(:,(size(W)-4):size(W)))
        
          W=sqrt(abs(W))
          W=W/sum(W)
          write(1313,*) 'Principal Components Values'
-         do k=1,size(W)
+         do k=size(W),1,-1
           write(1313,*) W(k)
+         enddo
+         do l=1,size(AA,1)
+          write(1313,*) (AA(l,k),k=1,4)
          enddo
 
 !!!
@@ -439,17 +479,17 @@
 
         endif
         
-        aaa=npar*nkinds
-        if(cs)then
-!         bbb=npar2fit+(nkinds*npar)!-1
-         bbb=npar2fit+(nkinds*npar)-1
-        else
-!         bbb=npar2fit+nkinds!-1
-         bbb=npar2fit+nkinds-1
-        endif
-        lwork=bbb+64*bbb+1000
+!        aaa=npar*nkinds
+!        if(cs)then
+!         bbb=npar2fit+(nkinds*(npar-1))!-1
+!         bbb=npar2fit+(nkinds*npar)-1
+!        else
+!         bbb=npar2fit!+nkinds!-1
+!         bbb=npar2fit
+!        endif
+        lwork=dimB+64*dimB+1000
         allocate(work(lwork))
-        call dgels('N',bbb,aaa,1,A,bbb,B,bbb,WORK,LWORK,inf)
+        call dgels('N',dimB,dimA,1,A,dimB,B,dimB,WORK,LWORK,inf)
         deallocate(work)
         if(inf.ne.0)then
          write(*,*) 'zgels failed',inf
